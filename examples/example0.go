@@ -13,9 +13,12 @@ func main() {
 	if in == nil {
 		log.Fatal("Failed to open test-input.wav")
 	}
-	out := sox.OpenWrite("./test-output.wav", in.Signal())
-	if in == nil {
-		log.Fatal("Failed to open test-output.wav")
+	out := sox.OpenWrite("default", in.Signal(), nil, "alsa")
+	if out == nil {
+		out = sox.OpenWrite("default", in.Signal(), nil, "pulseaudio")
+		if out == nil {
+			log.Fatal("Failed to open output device")
+		}
 	}
 
 	chain := sox.CreateEffectsChain(in.Encoding(), out.Encoding())

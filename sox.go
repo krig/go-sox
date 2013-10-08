@@ -206,25 +206,53 @@ func maybeCSignal(signal *SignalInfo) *C.sox_signalinfo_t {
 	return nil
 }
 
-func OpenWrite(path string, signal *SignalInfo) *Format {
-	cpath := C.CString(path)
+func maybeCEncoding(encoding *EncodingInfo) *C.sox_encodinginfo_t {
+	if encoding != nil {
+		return encoding.cEncoding
+	}
+	return nil
+}
+
+func maybeCString(s interface{}) *C.char {
+	switch s := s.(type) {
+	case string:
+		return C.CString(s)
+	}
+	return nil
+}
+
+func OpenWrite(path string, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
-	fmt.cFormat = C.sox_open_write(cpath, maybeCSignal(signal), nil, nil, nil, nil)
+	cpath := C.CString(path)
+	cfiletype := maybeCString(filetype)
+	fmt.cFormat = C.sox_open_write(cpath,
+		maybeCSignal(signal),
+		maybeCEncoding(encoding),
+		cfiletype,
+		nil,
+		nil)
 	C.free(unsafe.Pointer(cpath))
+	if cfiletype != nil {
+		C.free(unsafe.Pointer(cfiletype))
+	}
 	if fmt.cFormat == nil {
 		return nil
 	}
 	return &fmt
 }
 
-func OpenMemWrite(buffer []byte, signal *SignalInfo) *Format {
+func OpenMemWrite(buffer []byte, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
+	cfiletype := maybeCString(filetype)
 	fmt.cFormat = C.sox_open_mem_write(unsafe.Pointer(&buffer[0]),
 		C.size_t(len(buffer)),
 		maybeCSignal(signal),
-		nil,
-		nil,
+		maybeCEncoding(encoding),
+		cfiletype,
 		nil)
+	if cfiletype != nil {
+		C.free(unsafe.Pointer(cfiletype))
+	}
 	if fmt.cFormat == nil {
 		return nil
 	}
