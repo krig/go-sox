@@ -1,4 +1,6 @@
-go-sox
-======
+# gosox
 
-libsox bindings for go
+Go bindings for the libsox sound library
+
+* http://sox.sourceforge.net/
+
