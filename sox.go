@@ -1,8 +1,11 @@
 package sox
 
+import "unsafe"
+
 /*
 #cgo pkg-config: sox
 #include <sox.h>
+#include <stdlib.h>
 */
 import "C"
 
@@ -92,4 +95,214 @@ func Quit() bool {
 	return ret == C.SOX_SUCCESS
 }
 
+func StrError(errno int) string {
+	return C.GoString(C.sox_strerror(C.int(errno)))
+}
 
+type Format struct {
+	cFormat *C.sox_format_t
+}
+
+type SignalInfo struct {
+	cSignal *C.sox_signalinfo_t
+}
+
+type EncodingInfo struct {
+	cEncoding *C.sox_encodinginfo_t
+}
+
+type FormatHandler struct {
+	cHandler *C.sox_format_handler_t
+}
+
+type EffectsGlobals struct {
+	cGlobals *C.sox_effects_globals_t
+}
+
+type EffectsChain struct {
+	cChain *C.sox_effects_chain_t
+}
+
+type EffectHandler struct {
+	cHandler *C.sox_effect_handler_t
+}
+
+type Effect struct {
+	cEffect *C.sox_effect_t
+}
+
+func (f *Format) Close() {
+	C.sox_close(f.cFormat)
+	f.cFormat = nil
+}
+
+func (f *Format) Filename() string {
+	return C.GoString(f.cFormat.filename)
+}
+
+func (f *Format) Signal() *SignalInfo {
+	var s SignalInfo
+	s.cSignal = &f.cFormat.signal
+	return &s
+}
+
+func (f *Format) Encoding() *EncodingInfo {
+	var e EncodingInfo
+	e.cEncoding = &f.cFormat.encoding
+	return &e
+}
+
+func (f *Format) Type() string {
+	return C.GoString(f.cFormat.filetype)
+}
+
+func (f *Format) Seekable() bool {
+	return f.cFormat.seekable != 0
+}
+
+func (f *Format) Read(buffer []int32) int64 {
+	return int64(C.sox_read(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer))))
+}
+
+func (f *Format) Write(buffer []int32) int64 {
+	return int64(C.sox_write(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer))))
+}
+
+func (f *Format) Seek(offset uint64) bool {
+	return C.sox_seek(f.cFormat, C.sox_uint64_t(offset), C.SOX_SEEK_SET) == C.SOX_SUCCESS
+}
+
+func OpenRead(path string) *Format {
+	cpath := C.CString(path)
+	var fmt Format
+	fmt.cFormat = C.sox_open_read(cpath, nil, nil, nil)
+	C.free(unsafe.Pointer(cpath))
+	if fmt.cFormat == nil {
+		return nil
+	}
+	return &fmt
+}
+
+func OpenMemRead(buffer []byte) *Format {
+	var fmt Format
+	fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), nil, nil, nil)
+	if fmt.cFormat == nil {
+		return nil
+	}
+	return &fmt
+}
+
+func FormatSupportsEncoding(path string, encoding *EncodingInfo) bool {
+	cpath := C.CString(path)
+	ret := C.sox_format_supports_encoding(cpath, nil, encoding.cEncoding)
+	C.free(unsafe.Pointer(cpath))
+	return int(ret) != 0
+}
+
+func maybeCSignal(signal *SignalInfo) *C.sox_signalinfo_t {
+	if signal != nil {
+		return signal.cSignal
+	}
+	return nil
+}
+
+func OpenWrite(path string, signal *SignalInfo) *Format {
+	cpath := C.CString(path)
+	var fmt Format
+	fmt.cFormat = C.sox_open_write(cpath, maybeCSignal(signal), nil, nil, nil, nil)
+	C.free(unsafe.Pointer(cpath))
+	if fmt.cFormat == nil {
+		return nil
+	}
+	return &fmt
+}
+
+func OpenMemWrite(buffer []byte, signal *SignalInfo) *Format {
+	var fmt Format
+	fmt.cFormat = C.sox_open_mem_write(unsafe.Pointer(&buffer[0]),
+		C.size_t(len(buffer)),
+		maybeCSignal(signal),
+		nil,
+		nil,
+		nil)
+	if fmt.cFormat == nil {
+		return nil
+	}
+	return &fmt
+}
+
+func bool2int(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func FindFormat(name string, ignore_devices bool) *FormatHandler {
+	var fmt FormatHandler
+	cname := C.CString(name)
+	fmt.cHandler = C.sox_find_format(cname, C.sox_bool(bool2int(ignore_devices)))
+	C.free(unsafe.Pointer(cname))
+	return &fmt
+}
+
+func GetEffectsGlobals() *EffectsGlobals {
+	var g EffectsGlobals
+	g.cGlobals = C.sox_get_effects_globals()
+	return &g
+}
+
+func CreateEffectsChain(in *EncodingInfo, out *EncodingInfo) *EffectsChain {
+	var chain EffectsChain
+	chain.cChain = C.sox_create_effects_chain(in.cEncoding, out.cEncoding)
+	return &chain
+}
+
+func (c *EffectsChain) Delete() {
+	C.sox_delete_effects_chain(c.cChain)
+}
+
+func (c *EffectsChain) AddEffect(effect *Effect, in, out *SignalInfo) bool {
+	return C.sox_add_effect(c.cChain, effect.cEffect, in.cSignal, out.cSignal) == C.SOX_SUCCESS
+}
+
+func (c *EffectsChain) FlowEffects() bool {
+	return C.sox_flow_effects(c.cChain, nil, nil) == C.SOX_SUCCESS
+}
+
+func FindEffect(name string) *EffectHandler {
+	var h EffectHandler
+	cname := C.CString(name)
+	h.cHandler = C.sox_find_effect(cname)
+	C.free(unsafe.Pointer(cname))
+	return &h
+}
+
+func CreateEffect(handler *EffectHandler) *Effect {
+	var e Effect
+	e.cEffect = C.sox_create_effect(handler.cHandler)
+	return &e
+}
+
+func (e *Effect) Free() {
+	C.free(unsafe.Pointer(e.cEffect))
+	e.cEffect = nil
+}
+
+func (e *Effect) Options(args ...interface{}) int {
+	if len(args) == 0 {
+		return int(C.sox_effect_options(e.cEffect, 0, nil))
+	}
+	var cargs [10](*C.char)
+	n := len(args)
+	for i, v := range args {
+		switch v := v.(type) {
+		case *Format:
+			cargs[i] = (*C.char)(unsafe.Pointer(v.cFormat))
+		case string:
+			cargs[i] = C.CString(v)
+		}
+	}
+
+	return int(C.sox_effect_options(e.cEffect, C.int(n), (&cargs[0])))
+}
