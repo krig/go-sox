@@ -480,6 +480,11 @@ func CreateEffect(handler *EffectHandler) *Effect {
 	return &e
 }
 
+// Stop an effect (calls stop on each of its flows).
+func (e *Effect) Stop() {
+	C.sox_stop_effect(e.cEffect)
+}
+
 // Release the memory held by the effect.
 func (e *Effect) Release() {
 	C.free(unsafe.Pointer(e.cEffect))
