@@ -10,6 +10,14 @@ const (
 	MAX_SAMPLES = 2048
 )
 
+// Flow data from in to out via the samples buffer
+func flow(in, out *sox.Format, samples []sox.Sample) {
+	n := uint(len(samples))
+	for number_read := in.Read(samples, n); number_read > 0; number_read = in.Read(samples, n) {
+		out.Write(samples, uint(number_read))
+	}
+}
+
 // Example of reading and writing audio files stored
 // in memory buffers rather than actual files.
 func main() {
@@ -34,9 +42,7 @@ func main() {
 		log.Fatal("Failed to open memory buffer")
 	}
 
-	for number_read := in.Read(samples[:], MAX_SAMPLES); number_read > 0; number_read = in.Read(samples[:], MAX_SAMPLES) {
-		out.Write(samples[:], uint(number_read))
-	}
+	flow(in, out, samples[:])
 	out.Close()
 	in.Close()
 
@@ -48,9 +54,8 @@ func main() {
 	if out == nil {
 		log.Fatal("Failed to open file for writing")
 	}
-	for number_read := in.Read(samples[:], MAX_SAMPLES); number_read > 0; number_read = in.Read(samples[:], MAX_SAMPLES) {
-		out.Write(samples[:], uint(number_read))
-	}
+	flow(in, out, samples[:])
 	out.Close()
 	in.Close()
+	buf.Close()
 }

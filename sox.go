@@ -359,6 +359,14 @@ func (m *Memstream) Bytes() []byte {
 	return C.GoBytes(unsafe.Pointer(m.buffer), C.int(m.length))
 }
 
+// Close the memstream and free the allocated memory
+func (m *Memstream) Close() {
+	if m.buffer != nil {
+		C.free(unsafe.Pointer(m.buffer))
+		m.buffer = nil
+	}
+}
+
 // OpenMemstreamWrite opens an encoding session for a memstream buffer.
 // Returned handle must be closed with .Close()
 func OpenMemstreamWrite(memstream *Memstream, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
