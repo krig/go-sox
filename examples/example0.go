@@ -24,7 +24,7 @@ func main() {
 		log.Fatal("Failed to open input file")
 	}
 	// Close the file before exiting
-	defer in.Close()
+	defer in.Release()
 
 	// Open the output device: Specify the output signal characteristics.
 	// Since we are using only simple effects, they are the same as the
@@ -39,13 +39,13 @@ func main() {
 		}
 	}
 	// Close the output device before exiting
-	defer out.Close()
+	defer out.Release()
 
 	// Create an effects chain: Some effects need to know about the
 	// input or output encoding so we provide that information here.
 	chain := sox.CreateEffectsChain(in.Encoding(), out.Encoding())
 	// Make sure to clean up!
-	defer chain.Delete()
+	defer chain.Release()
 
 	// The first effect in the effect chain must be something that can
 	// source samples; in this case, we use the built-in handler that
@@ -53,29 +53,29 @@ func main() {
 	e := sox.CreateEffect(sox.FindEffect("input"))
 	e.Options(in)
 	// This becomes the first "effect" in the chain
-	chain.AddEffect(e, in.Signal(), in.Signal())
-	e.Free()
+	chain.Add(e, in.Signal(), in.Signal())
+	e.Release()
 
 	// Create the `vol' effect, and initialise it with the desired parameters:
 	e = sox.CreateEffect(sox.FindEffect("vol"))
 	e.Options("3dB")
         // Add the effect to the end of the effects processing chain:
-	chain.AddEffect(e, in.Signal(), in.Signal())
-	e.Free()
+	chain.Add(e, in.Signal(), in.Signal())
+	e.Release()
 
 	// Create the `flanger' effect, and initialise it with default parameters:
 	e = sox.CreateEffect(sox.FindEffect("flanger"))
 	e.Options()
-	chain.AddEffect(e, in.Signal(), in.Signal())
-	e.Free()
+	chain.Add(e, in.Signal(), in.Signal())
+	e.Release()
 
 	// The last effect in the effect chain must be something that only consumes
 	// samples; in this case, we use the built-in handler that outputs data.
 	e = sox.CreateEffect(sox.FindEffect("output"))
 	e.Options(out)
-	chain.AddEffect(e, in.Signal(), in.Signal())
-	e.Free()
+	chain.Add(e, in.Signal(), in.Signal())
+	e.Release()
 
 	// Flow samples through the effects processing chain until EOF is reached.
-	chain.FlowEffects()
+	chain.Flow()
 }

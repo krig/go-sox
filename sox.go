@@ -176,8 +176,8 @@ type Memstream struct {
 }
 
 
-// Close closes an encoding or decoding session.
-func (f *Format) Close() {
+// Release closes an encoding or decoding session.
+func (f *Format) Release() {
 	C.sox_close(f.cFormat)
 	f.cFormat = nil
 }
@@ -239,7 +239,7 @@ func (f *Format) Seek(offset uint64) bool {
 }
 
 // OpenRead opens a decoding session for a file. Returned handle
-// must be closed with (*Format).Close().
+// must be closed with (*Format).Release().
 // Returns the handle for the new session, or nil on failure.
 func OpenRead(path string) *Format {
 	cpath := C.CString(path)
@@ -253,7 +253,7 @@ func OpenRead(path string) *Format {
 }
 
 // OpenMemRead opens a decoding session for a memory buffer.
-// Returned handle must be closed with (*Format).Close().
+// Returned handle must be closed with (*Format).Release().
 // Returns the handle for the new session, or nil
 // on failure.
 func OpenMemRead(buffer interface{}) *Format {
@@ -306,7 +306,7 @@ func maybeCString(s interface{}) *C.char {
 }
 
 // OpenWrite opens an encoding session for a file.
-// Returned handle must be closed with .Close().
+// Returned handle must be closed with .Release().
 func OpenWrite(path string, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
 	cpath := C.CString(path)
@@ -328,7 +328,7 @@ func OpenWrite(path string, signal *SignalInfo, encoding *EncodingInfo, filetype
 }
 
 // OpenMemWrite opens an encoding session for a memory buffer.
-// Returned handle must be closed with .Close().
+// Returned handle must be closed with .Release().
 func OpenMemWrite(buffer []byte, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
 	cfiletype := maybeCString(filetype)
@@ -359,8 +359,8 @@ func (m *Memstream) Bytes() []byte {
 	return C.GoBytes(unsafe.Pointer(m.buffer), C.int(m.length))
 }
 
-// Close the memstream and free the allocated memory
-func (m *Memstream) Close() {
+// Release the memstream and free the allocated memory
+func (m *Memstream) Release() {
 	if m.buffer != nil {
 		C.free(unsafe.Pointer(m.buffer))
 		m.buffer = nil
@@ -368,7 +368,7 @@ func (m *Memstream) Close() {
 }
 
 // OpenMemstreamWrite opens an encoding session for a memstream buffer.
-// Returned handle must be closed with .Close()
+// Returned handle must be closed with .Release()
 func OpenMemstreamWrite(memstream *Memstream, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
 	cfiletype := maybeCString(filetype)
@@ -411,27 +411,57 @@ func GetEffectsGlobals() *EffectsGlobals {
 }
 
 // CreateEffectsChain initializes an effects chain.
-// Returned handle must be closed with .Delete().
+// Returned handle must be closed with .Release().
 func CreateEffectsChain(in *EncodingInfo, out *EncodingInfo) *EffectsChain {
 	var chain EffectsChain
 	chain.cChain = C.sox_create_effects_chain(in.cEncoding, out.cEncoding)
 	return &chain
 }
 
-// Delete releases the memory used by the effects chain.
-func (c *EffectsChain) Delete() {
+// Release the memory used by the effects chain.
+func (c *EffectsChain) Release() {
 	C.sox_delete_effects_chain(c.cChain)
 }
 
-// AddEffect adds the given effect to the effects chain.
+// Add the given effect to the effects chain.
 // Returns true if successful.
-func (c *EffectsChain) AddEffect(effect *Effect, in, out *SignalInfo) bool {
+func (c *EffectsChain) Add(effect *Effect, in, out *SignalInfo) bool {
 	return C.sox_add_effect(c.cChain, effect.cEffect, in.cSignal, out.cSignal) == C.SOX_SUCCESS
 }
 
-// FlowEffects runs the effects chain, returns true if successful.
-func (c *EffectsChain) FlowEffects() bool {
+// PushLast adds an already-initialized effect to the end of the chain.
+func (c *EffectsChain) PushLast(effect* Effect) {
+	C.sox_push_effect_last(c.cChain, effect.cEffect)
+}
+
+// PopLast removes and returns an effect from the end of the chain.
+func (c *EffectsChain) PopLast() *Effect {
+	var e Effect
+	e.cEffect = C.sox_pop_effect_last(c.cChain)
+	if e.cEffect == nil {
+		return nil
+	}
+	return &e
+}
+
+// DeleteLast shuts down and deletes the last effect in the chain.
+func (c *EffectsChain) DeleteLast() {
+	C.sox_delete_effect_last(c.cChain)
+}
+
+// DeleteAll shuts down and deletes all effects in the chain.
+func (c *EffectsChain) DeleteAll() {
+	C.sox_delete_effects(c.cChain)
+}
+
+// Flow runs the effects chain, returns true if successful.
+func (c *EffectsChain) Flow() bool {
 	return C.sox_flow_effects(c.cChain, nil, nil) == C.SOX_SUCCESS
+}
+
+// Clips returns the number of clips that occurred while running an effects chain.
+func (c *EffectsChain) Clips() uint64 {
+	return uint64(C.sox_effects_clips(c.cChain))
 }
 
 // FindEffect finds the effect handler with the given name.
@@ -450,8 +480,8 @@ func CreateEffect(handler *EffectHandler) *Effect {
 	return &e
 }
 
-// Free releases the memory held by the effect.
-func (e *Effect) Free() {
+// Release the memory held by the effect.
+func (e *Effect) Release() {
 	C.free(unsafe.Pointer(e.cEffect))
 	e.cEffect = nil
 }

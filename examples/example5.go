@@ -37,14 +37,15 @@ func main() {
 
 	// Set up the memory buffer for writing
 	buf := sox.NewMemstream()
+	defer buf.Release()
 	out := sox.OpenMemstreamWrite(buf, in.Signal(), nil, "sox")
 	if out == nil {
 		log.Fatal("Failed to open memory buffer")
 	}
 
 	flow(in, out, samples[:])
-	out.Close()
-	in.Close()
+	out.Release()
+	in.Release()
 
 	in = sox.OpenMemRead(buf)
 	if in == nil {
@@ -55,7 +56,6 @@ func main() {
 		log.Fatal("Failed to open file for writing")
 	}
 	flow(in, out, samples[:])
-	out.Close()
-	in.Close()
-	buf.Close()
+	out.Release()
+	in.Release()
 }
