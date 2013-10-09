@@ -4,10 +4,13 @@ package main
 // Use this URL to import the go-sox library
 import "github.com/krig/go-sox"
 import "log"
+import "flag"
 
 // Reads an input file, applies volume and flanger effects,
 // plays to output device.
 func main() {
+	flag.Parse()
+
 	// All libSoX applications must start by initializing the SoX library
 	if !sox.Init() {
 		log.Fatal("Failed to initialize SoX")
@@ -16,9 +19,9 @@ func main() {
 	defer sox.Quit()
 
 	// Open the input file (with default parameters)
-	in := sox.OpenRead("./test-input.wav")
+	in := sox.OpenRead(flag.Arg(0))
 	if in == nil {
-		log.Fatal("Failed to open test-input.wav")
+		log.Fatal("Failed to open input file")
 	}
 	// Close the file before exiting
 	defer in.Close()

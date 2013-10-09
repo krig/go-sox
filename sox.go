@@ -127,6 +127,9 @@ type Format struct {
 	cFormat *C.sox_format_t
 }
 
+// Sample is the native SoX audio sample type (int32)
+type Sample int32
+
 // SignalInfo holds signal parameters; members
 // should be set to SOX_UNSPEC (= 0) if unknown.
 type SignalInfo struct {
@@ -162,6 +165,16 @@ type EffectHandler struct {
 type Effect struct {
 	cEffect *C.sox_effect_t
 }
+
+// Memstream is a holder for memory
+// buffer information filled in by
+// OpenMemstreamWrite. It can be passed
+// directly to OpenMemRead().
+type Memstream struct {
+	buffer *C.char
+	length C.size_t
+}
+
 
 // Close closes an encoding or decoding session.
 func (f *Format) Close() {
@@ -211,13 +224,13 @@ func (f *Format) Seekable() bool {
 }
 
 // Read reads samples from a decoding session into a sample buffer.
-func (f *Format) Read(buffer []int32) int64 {
-	return int64(C.sox_read(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer))))
+func (f *Format) Read(buffer []Sample, num uint) int64 {
+	return int64(C.sox_read(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(num)))
 }
 
 // Write writes samples to an encoding session from a sample buffer.
-func (f *Format) Write(buffer []int32) int64 {
-	return int64(C.sox_write(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer))))
+func (f *Format) Write(buffer []Sample, num uint) int64 {
+	return int64(C.sox_write(f.cFormat, (*C.sox_sample_t)(unsafe.Pointer(&buffer[0])), C.size_t(num)))
 }
 
 // Seek sets the location at which next samples will be decoded. Returns true if successful.
@@ -243,9 +256,14 @@ func OpenRead(path string) *Format {
 // Returned handle must be closed with (*Format).Close().
 // Returns the handle for the new session, or nil
 // on failure.
-func OpenMemRead(buffer []byte) *Format {
+func OpenMemRead(buffer interface{}) *Format {
 	var fmt Format
-	fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), nil, nil, nil)
+	switch buffer := buffer.(type) {
+	case []byte:
+		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), nil, nil, nil)
+	case *Memstream:
+		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(buffer.buffer), buffer.length, nil, nil, nil)
+	}
 	if fmt.cFormat == nil {
 		return nil
 	}
@@ -316,6 +334,37 @@ func OpenMemWrite(buffer []byte, signal *SignalInfo, encoding *EncodingInfo, fil
 	cfiletype := maybeCString(filetype)
 	fmt.cFormat = C.sox_open_mem_write(unsafe.Pointer(&buffer[0]),
 		C.size_t(len(buffer)),
+		maybeCSignal(signal),
+		maybeCEncoding(encoding),
+		cfiletype,
+		nil)
+	if cfiletype != nil {
+		C.free(unsafe.Pointer(cfiletype))
+	}
+	if fmt.cFormat == nil {
+		return nil
+	}
+	return &fmt
+}
+
+// NewMemstream creates a new memory buffer holder.
+func NewMemstream() *Memstream {
+	var ms Memstream
+	return &ms
+}
+
+// Bytes returns a copy of the written memory buffer
+// as a Go byte array.
+func (m *Memstream) Bytes() []byte {
+	return C.GoBytes(unsafe.Pointer(m.buffer), C.int(m.length))
+}
+
+// OpenMemstreamWrite opens an encoding session for a memstream buffer.
+// Returned handle must be closed with .Close()
+func OpenMemstreamWrite(memstream *Memstream, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
+	var fmt Format
+	cfiletype := maybeCString(filetype)
+	fmt.cFormat = C.sox_open_memstream_write(&memstream.buffer, &memstream.length,
 		maybeCSignal(signal),
 		maybeCEncoding(encoding),
 		cfiletype,
