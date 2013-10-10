@@ -386,14 +386,6 @@ func OpenMemstreamWrite(memstream *Memstream, signal *SignalInfo, encoding *Enco
 	return &fmt
 }
 
-// bool2int converts a bool to 1 for true and 0 for false.
-func bool2int(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 // FindFormat finds a format handler by name.
 func FindFormat(name string, ignore_devices bool) *FormatHandler {
 	var fmt FormatHandler
@@ -511,4 +503,12 @@ func (e *Effect) Options(args ...interface{}) int {
 	}
 
 	return int(C.sox_effect_options(e.cEffect, C.int(n), (&cargs[0])))
+}
+
+// bool2int converts a bool to 1 for true and 0 for false.
+func bool2int(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
