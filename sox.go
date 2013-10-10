@@ -11,11 +11,22 @@ import "unsafe"
 #cgo pkg-config: sox
 #include <sox.h>
 #include <stdlib.h>
+
+ sox_effect_handler_t const * go_sox_effect_fn_shim(sox_effect_fn_t const* fn) {
+   return (*fn)();
+ }
+
 */
 import "C"
 
 const (
+	// no, yes, or default (default usually implies some kind of auto-detect logic).
+	NO = C.sox_option_no
+	YES = C.sox_option_yes
+	DEFAULT = C.sox_option_default
+
 	// The libSoX-specific error codes.
+	SUCCESS = C.SOX_SUCCESS // Function succeeded
 	EOF = C.SOX_EOF		// End Of File or other error
 	EHDR = C.SOX_EHDR	// Invalid Audio Header
 	EFMT = C.SOX_EFMT	// Unsupported data format
@@ -64,6 +75,12 @@ const (
 	LOSSLESS = C.sox_encodings_none // No flags specified (implies lossless encoding).
 	LOSSY1 = C.sox_encodings_lossy1 // Encode, decode: lossy once.
 	LOSSY2 = C.sox_encodings_lossy2 // Encode, decode, encode, decode: lossy twice.
+
+	// Type of plot.
+	PLOT_OFF = C.sox_plot_off // No plot.
+	PLOT_OCTAVE = C.sox_plot_octave // Octave plot.
+	PLOT_GNUPLOT = C.sox_plot_gnuplot // Gnuplot plot.
+	PLOT_DATA = C.sox_plot_data // Plot data.
 
 	// Loop modes.
 	LOOP_NONE = C.sox_loop_none // single-shot
@@ -136,9 +153,15 @@ type SignalInfo struct {
 	cSignal *C.sox_signalinfo_t
 }
 
-// EncodingInfo holds basic information about an encoding.
+// EncodingInfo holds encoding parameters.
 type EncodingInfo struct {
 	cEncoding *C.sox_encodinginfo_t
+}
+
+// EncodingsInfo holds basic information about an encoding.
+type EncodingsInfo struct {
+	Flags int // lossy once, lossy twice or lossless
+	Name, Desc string
 }
 
 // FormatHandler structure defined by each format.
@@ -175,6 +198,10 @@ type Memstream struct {
 	length C.size_t
 }
 
+// Comments holds file's metadata, access via sox_*_comments functions.
+type Comments struct {
+	cComments *C.sox_comments_t
+}
 
 // Release closes an encoding or decoding session.
 func (f *Format) Release() {
@@ -236,6 +263,18 @@ func (f *Format) Write(buffer []Sample, num uint) int64 {
 // Seek sets the location at which next samples will be decoded. Returns true if successful.
 func (f *Format) Seek(offset uint64) bool {
 	return C.sox_seek(f.cFormat, C.sox_uint64_t(offset), C.SOX_SEEK_SET) == C.SOX_SUCCESS
+}
+
+// Comments returns out-of-band metadata
+func (f *Format) Comments() *Comments {
+	var c Comments
+	c.cComments = &f.cFormat.oob.comments
+	return &c
+}
+
+// DeleteComments deletes all out-of-band metadata
+func (f *Format) DeleteComments() {
+	C.sox_delete_comments(&f.cFormat.oob.comments)
 }
 
 // OpenRead opens a decoding session for a file. Returned handle
@@ -456,6 +495,22 @@ func (c *EffectsChain) Clips() uint64 {
 	return uint64(C.sox_effects_clips(c.cChain))
 }
 
+// Name returns the effect name
+func (h *EffectHandler) Name() string {
+	return C.GoString(h.cHandler.name)
+}
+
+// Usage returns a short explanation of the parameters accepted by the effect
+func (h *EffectHandler) Usage() string {
+	return C.GoString(h.cHandler.usage)
+}
+
+// Flags returns the combination of effect flags
+func (h *EffectHandler) Flags() uint {
+	return uint(h.cHandler.flags)
+}
+
+
 // FindEffect finds the effect handler with the given name.
 func FindEffect(name string) *EffectHandler {
 	var h EffectHandler
@@ -503,6 +558,91 @@ func (e *Effect) Options(args ...interface{}) int {
 	}
 
 	return int(C.sox_effect_options(e.cEffect, C.int(n), (&cargs[0])))
+}
+
+// GetEncodingsInfo returns an array of available encodings.
+func GetEncodingsInfo() (info []EncodingsInfo) {
+	cinfo := C.sox_get_encodings_info()
+	if cinfo == nil {
+		return
+	}
+	var pt C.sox_encodings_info_t
+	var p *C.sox_encodings_info_t
+	q := uintptr(unsafe.Pointer(cinfo))
+	for {
+		p = (*C.sox_encodings_info_t)(unsafe.Pointer(q))
+		if p.name == nil {
+			break
+		}
+		var e EncodingsInfo
+		e.Flags = int(p.flags)
+		e.Name = C.GoString(p.name)
+		e.Desc = C.GoString(p.desc)
+		info = append(info, e)
+		q += unsafe.Sizeof(pt)
+	}
+	return
+}
+
+// GetEffectHandlers returns an array containing the known effect handlers.
+func GetEffectHandlers() (handlers []EffectHandler) {
+	effect_fns := C.sox_get_effect_fns()
+	if effect_fns == nil {
+		return
+	}
+	q := uintptr(unsafe.Pointer(effect_fns))
+	for {
+		effect_fns = (*C.sox_effect_fn_t)(unsafe.Pointer(q))
+		if *effect_fns == nil {
+			break
+		}
+		var handler EffectHandler
+		handler.cHandler = C.go_sox_effect_fn_shim(effect_fns)
+		handlers = append(handlers, handler)
+		q += unsafe.Sizeof(q)
+	}
+	return
+}
+
+// Precision: Given an encoding (for example, SIGN2) and the encoded bits_per_sample (for
+// example, 16), returns the number of useful bits per sample in the decoded data
+// (for example, 16), or returns 0 to indicate that the value returned by the
+// format handler should be used instead of a pre-determined precision.
+// @returns the number of useful bits per sample in the decoded data (for example
+// 16), or returns 0 to indicate that the value returned by the format handler
+// should be used instead of a pre-determined precision.
+func Precision(encoding int, bits_per_sample uint) uint {
+	return uint(C.sox_precision(C.sox_encoding_t(encoding), C.unsigned(bits_per_sample)))
+}
+
+// Num returns the number of items in the metadata block.
+func (c *Comments) Num() int {
+	return int(C.sox_num_comments(*c.cComments))
+}
+
+// Append adds an "id=value" item to the metadata block.
+func (c *Comments) Append(item string) {
+	citem := C.CString(item)
+	defer C.free(unsafe.Pointer(citem))
+	C.sox_append_comment(c.cComments, citem)
+}
+
+// AppendN adds a newline-delimited list of "id=value" items to the metadata block.
+func (c *Comments) AppendN(item string) {
+	citem := C.CString(item)
+	defer C.free(unsafe.Pointer(citem))
+	C.sox_append_comments(c.cComments, citem)
+}
+
+// Find returns value if "id=value" is found, else nil
+func (c *Comments) Find(id string) interface{} {
+	cid := C.CString(id)
+	defer C.free(unsafe.Pointer(cid))
+	ret := C.sox_find_comment(*c.cComments, cid)
+	if ret == nil {
+		return nil
+	}
+	return C.GoString(ret)
 }
 
 // bool2int converts a bool to 1 for true and 0 for false.
