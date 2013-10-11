@@ -288,6 +288,21 @@ func (f *Format) DeleteComments() {
 	C.sox_delete_comments(&f.cFormat.oob.comments)
 }
 
+func NewSignalInfo(rate float64, channels, precision uint, length uint64, mult *float64) *SignalInfo {
+	var s SignalInfo
+	s.cSignal = &C.sox_signalinfo_t{}
+	s.cSignal.rate = C.sox_rate_t(rate)
+	s.cSignal.channels = C.unsigned(channels)
+	s.cSignal.precision = C.unsigned(precision)
+	s.cSignal.length = C.sox_uint64_t(length)
+	if mult != nil {
+		var d C.double
+		d = C.double(*mult)
+		s.cSignal.mult = &d
+	}
+	return &s
+}
+
 // Rate = samples per second, 0 if unknown
 func (s *SignalInfo) Rate() float64 {
 	return float64(s.cSignal.rate)
