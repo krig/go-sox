@@ -5,7 +5,10 @@
 // but is useful for any sound application.
 package sox
 
-import "unsafe"
+import (
+	"unsafe"
+	"math"
+)
 
 /*
 #cgo pkg-config: sox
@@ -683,6 +686,18 @@ func (c *Comments) Find(id string) interface{} {
 		return nil
 	}
 	return C.GoString(ret)
+}
+
+func SampleToUInt32(d Sample) uint32 {
+	return uint32(((d) ^ math.MinInt32))
+}
+
+func SampleToInt32(d Sample) int32 {
+	return int32(d)
+}
+
+func SampleToFloat64(d Sample) float64 {
+	return ((float64(d)) * (1.0 / (float64(math.MaxInt32) + 1.0)))
 }
 
 // bool2int converts a bool to 1 for true and 0 for false.
