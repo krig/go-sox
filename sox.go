@@ -14,13 +14,18 @@ import (
 #cgo pkg-config: sox
 #include <sox.h>
 #include <stdlib.h>
-
- sox_effect_handler_t const * go_sox_effect_fn_shim(sox_effect_fn_t const* fn) {
-   return (*fn)();
- }
-
+extern int go_flow_shim_impl(void* fn, sox_bool all_done);
+sox_effect_handler_t const * go_sox_effect_fn_shim(sox_effect_fn_t const* fn);
+int go_sox_flow_shim(sox_bool all_done, void *client_data);
+sox_flow_effects_callback go_sox_get_flow_shim();
 */
 import "C"
+
+//export go_flow_shim_impl
+func go_flow_shim_impl(fn unsafe.Pointer, all_done C.sox_bool) C.int {
+	cfn := *(*func(bool) int)(fn)
+	return C.int(cfn(all_done != 0))
+}
 
 const (
 	// no, yes, or default (default usually implies some kind of auto-detect logic).
@@ -180,6 +185,9 @@ type EffectsGlobals struct {
 // EffectsChain holds a chain of effects to be applied to a stream.
 type EffectsChain struct {
 	cChain *C.sox_effects_chain_t
+
+	// Used by FlowCallback to retain memory
+	cbTmp func(all_done bool) int
 }
 
 // EffectHandler holds effect handler information.
@@ -531,6 +539,11 @@ func (c *EffectsChain) DeleteAll() {
 // Flow runs the effects chain, returns true if successful.
 func (c *EffectsChain) Flow() bool {
 	return C.sox_flow_effects(c.cChain, nil, nil) == C.SOX_SUCCESS
+}
+
+func (c *EffectsChain) FlowCallback(fn func(all_done bool) int) bool {
+	c.cbTmp = fn
+	return C.sox_flow_effects(c.cChain, C.go_sox_get_flow_shim(), unsafe.Pointer(&c.cbTmp)) == C.SOX_SUCCESS
 }
 
 // Clips returns the number of clips that occurred while running an effects chain.
