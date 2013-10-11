@@ -277,6 +277,46 @@ func (f *Format) DeleteComments() {
 	C.sox_delete_comments(&f.cFormat.oob.comments)
 }
 
+// Rate = samples per second, 0 if unknown
+func (s *SignalInfo) Rate() float64 {
+	return float64(s.cSignal.rate)
+}
+
+// Channels = number of sound channels, 0 if unknown
+func (s *SignalInfo) Channels() uint {
+	return uint(s.cSignal.channels)
+}
+
+// Precision = bits per sample, 0 if unknown
+func (s *SignalInfo) Precision() uint {
+	return uint(s.cSignal.precision)
+}
+
+// Length = samples * chans in file, 0 if unknown, -1 if unspecified
+func (s *SignalInfo) Length() uint64 {
+	return uint64(s.cSignal.length)
+}
+
+// Mult = Effects headroom multiplier; (value, set/not set)
+func (s *SignalInfo) Mult() (float64, bool) {
+	if s.cSignal.mult != nil {
+		return float64(*s.cSignal.mult), true
+	}
+	return 0.0, false
+}
+
+// Returns a copy of the signalinfo
+func (s *SignalInfo) Copy() *SignalInfo {
+	ret := &SignalInfo{}
+	ret.cSignal = &C.sox_signalinfo_t{}
+	ret.cSignal.rate = s.cSignal.rate
+	ret.cSignal.channels = s.cSignal.channels
+	ret.cSignal.precision = s.cSignal.precision
+	ret.cSignal.length = s.cSignal.length
+	ret.cSignal.mult = s.cSignal.mult
+	return ret
+}
+
 // OpenRead opens a decoding session for a file. Returned handle
 // must be closed with (*Format).Release().
 // Returns the handle for the new session, or nil on failure.
