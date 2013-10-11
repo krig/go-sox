@@ -688,14 +688,17 @@ func (c *Comments) Find(id string) interface{} {
 	return C.GoString(ret)
 }
 
+// SampleToUInt32 converts sox.Sample to an unsigned 32-bit integer
 func SampleToUInt32(d Sample) uint32 {
 	return uint32(((d) ^ math.MinInt32))
 }
 
+// SampleToInt32 converts sox.Sample to a signed 32-bit integer
 func SampleToInt32(d Sample) int32 {
 	return int32(d)
 }
 
+// SampleToFloat64 converts sox.Sample to a float64
 func SampleToFloat64(d Sample) float64 {
 	return ((float64(d)) * (1.0 / (float64(math.MaxInt32) + 1.0)))
 }

@@ -41,6 +41,7 @@ func main() {
 	// Close the file before exiting
 	defer in.Release()
 
+	// This example program requires that the audio has precisely 2 channels:
 	if in.Signal().Channels() != 2 {
 		log.Fatal("Input must be 2 channels")
 	}
@@ -79,21 +80,32 @@ func main() {
 	// Allocate a block of memory to store the block of audio samples:
 	buf := make([]sox.Sample, block_size)
 
-	fmt.Printf("block_size: %d, %f\n", block_size, period)
-
+	// Read and process blocks of audio for the selected period or until EOF:
 	for blocks := 0; in.Read(buf, uint(block_size)) == block_size && float64(blocks) * BLOCK_PERIOD < period; blocks++ {
 		left := 0.0
 		right := 0.0
 		for i := int64(0); i < block_size; i++ {
+			// convert the sample from SoX's internal format to a `float64' for
+			// processing in this application:
 			sample := sox.SampleToFloat64(buf[i])
+
+			// The samples for each channel are interleaved; in this example
+			// we allow only stereo audio, so the left channel audio can be found in
+			// even-numbered samples, and the right channel audio in odd-numbered
+			// samples:
 			if (i & 1) != 0 {
 				right = math.Max(right, math.Abs(sample))
 			} else {
 				left = math.Max(left, math.Abs(sample))
 			}
 		}
+		// Build up the wave form by displaying the left & right channel
+		// volume as a line length:
 		l := int((1.0 - left) * 35.0 + 0.5)
 		r := int((1.0 - right) * 35.0 + 0.5)
-		fmt.Printf("%8.3f%36s|%s\n", start_secs + float64(blocks) * BLOCK_PERIOD, LINE[l:], LINE[r:])
+		fmt.Printf("%8.3f%36s|%s\n",
+			start_secs + float64(blocks) * BLOCK_PERIOD,
+			LINE[l:],
+			LINE[r:])
 	}
 }
