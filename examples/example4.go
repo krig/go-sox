@@ -54,6 +54,7 @@ func main() {
 			if output == nil {
 				log.Fatal("OpenWrite failed")
 			}
+			defer output.Release()
 			signal = input.Signal()
 		} else {
 			check(input.Signal().Channels() == signal.Channels(), "channels")
@@ -65,5 +66,4 @@ func main() {
 		}
 		input.Release()
 	}
-	output.Release()
 }
