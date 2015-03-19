@@ -379,9 +379,18 @@ func OpenMemRead(buffer interface{}) *Format {
 // the specified file type supports the specified encoding.
 func FormatSupportsEncoding(path string, encoding *EncodingInfo) bool {
 	cpath := C.CString(path)
-	ret := C.sox_format_supports_encoding(cpath, nil, encoding.cEncoding)
-	C.free(unsafe.Pointer(cpath))
-	return int(ret) != 0
+	defer C.free(unsafe.Pointer(cpath))
+	return int(C.sox_format_supports_encoding(cpath, nil, encoding.cEncoding)) != 0
+}
+
+// FormatSupportsEncoding2 returns true if the format handler for
+// the specified file type supports the specified encoding.
+func FormatSupportsEncoding2(path, filetype string, encoding *EncodingInfo) bool {
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+	ctype := C.CString(filetype)
+	defer C.free(unsafe.Pointer(ctype))
+	return int(C.sox_format_supports_encoding(cpath, ctype, encoding.cEncoding)) != 0
 }
 
 // maybeCSignal returns nil if the owned signal is NULL.
