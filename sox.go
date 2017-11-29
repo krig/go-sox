@@ -288,10 +288,10 @@ func (f *Format) DeleteComments() {
 	C.sox_delete_comments(&f.cFormat.oob.comments)
 }
 
-func NewEncodingInfo(encoding C.sox_encoding_t, bitsPerSample uint, compression float64, oppositeEndian bool) *EncodingInfo {
+func NewEncodingInfo(encoding int, bitsPerSample uint, compression float64, oppositeEndian bool) *EncodingInfo {
 	var e EncodingInfo
 	e.cEncoding = &C.sox_encodinginfo_t{}
-	e.cEncoding.encoding = encoding
+	e.cEncoding.encoding = C.sox_encoding_t(encoding)
 	e.cEncoding.bits_per_sample = C.unsigned(bitsPerSample)
 	e.cEncoding.compression = C.double(compression)
 	e.cEncoding.reverse_bytes = NO
