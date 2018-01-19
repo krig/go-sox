@@ -363,10 +363,25 @@ func (s *SignalInfo) Copy() *SignalInfo {
 // must be closed with (*Format).Release().
 // Returns the handle for the new session, or nil on failure.
 func OpenRead(path string) *Format {
-	cpath := C.CString(path)
+	return OpenRead0(path, nil, nil, nil)
+}
+
+// OpenRead0 opens a decoding session for a file,
+// accepting SignalInfo, EncodingInfo and file type parameters.
+// Returned handle must be closed with (*Format).Release().
+// Returns the handle for the new session, or nil on failure.
+func OpenRead0(path string, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
-	fmt.cFormat = C.sox_open_read(cpath, nil, nil, nil)
+	cpath := C.CString(path)
+	cfiletype := maybeCString(filetype)
+	fmt.cFormat = C.sox_open_read(cpath,
+		maybeCSignal(signal),
+		maybeCEncoding(encoding),
+		cfiletype)
 	C.free(unsafe.Pointer(cpath))
+	if cfiletype != nil {
+		C.free(unsafe.Pointer(cfiletype))
+	}
 	if fmt.cFormat == nil {
 		return nil
 	}
