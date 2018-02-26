@@ -393,17 +393,7 @@ func OpenRead0(path string, signal *SignalInfo, encoding *EncodingInfo, filetype
 // Returns the handle for the new session, or nil
 // on failure.
 func OpenMemRead(buffer interface{}) *Format {
-	var fmt Format
-	switch buffer := buffer.(type) {
-	case []byte:
-		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), nil, nil, nil)
-	case *Memstream:
-		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(buffer.buffer), buffer.length, nil, nil, nil)
-	}
-	if fmt.cFormat == nil {
-		return nil
-	}
-	return &fmt
+	return OpenMemRead0(buffer, nil, nil, nil)
 }
 
 // OpenMemRead opens a decoding session for a memory buffer.
