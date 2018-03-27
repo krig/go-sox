@@ -393,18 +393,33 @@ func OpenRead0(path string, signal *SignalInfo, encoding *EncodingInfo, filetype
 // Returns the handle for the new session, or nil
 // on failure.
 func OpenMemRead(buffer interface{}) *Format {
+	return OpenMemRead0(buffer, nil, nil, nil)
+}
+
+// OpenMemRead opens a decoding session for a memory buffer.
+// accepting SignalInfo, EncodingInfo and file type parameters.
+// Returned handle must be closed with (*Format).Release().
+// Returns the handle for the new session, or nil
+// on failure.
+func OpenMemRead0(buffer interface{}, signal *SignalInfo, encoding *EncodingInfo, filetype interface{}) *Format {
 	var fmt Format
+
+	csignal := maybeCSignal(signal)
+	cencoding := maybeCEncoding(encoding)
+	cfiletype := maybeCString(filetype)
+
 	switch buffer := buffer.(type) {
 	case []byte:
-		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), nil, nil, nil)
+		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(&buffer[0]), C.size_t(len(buffer)), csignal, cencoding, cfiletype)
 	case *Memstream:
-		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(buffer.buffer), buffer.length, nil, nil, nil)
+		fmt.cFormat = C.sox_open_mem_read(unsafe.Pointer(buffer.buffer), buffer.length, csignal, cencoding, cfiletype)
 	}
 	if fmt.cFormat == nil {
 		return nil
 	}
 	return &fmt
 }
+
 
 // FormatSupportsEncoding returns true if the format handler for
 // the specified file type supports the specified encoding.
