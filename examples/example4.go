@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 
 	// Need at least 2 input files + 1 output file.
-	if flag.NArg() < 2 + 1 {
+	if flag.NArg() < 2+1 {
 		log.Fatal("Usage: <input1> <input2> ... <output>")
 	}
 
@@ -36,19 +36,22 @@ func main() {
 	// Make sure to call Quit before terminating
 	defer sox.Quit()
 
-	var input *sox.Signal
-	var output *sox.Signal
+	var input *sox.Format
+	var output *sox.Format
+	var signal *sox.SignalInfo
 
 	// For each input file...
-	for i := 0; i < flag.NArg() - 1; i++ {
-		var samples [MAX_SAMPLES]Sample
+	for i := 0; i < flag.NArg()-1; i++ {
+		//initialize the Slice, such that when we pass it to C, it is an Array with sufficient Space
+		samples := make([]sox.Sample, MAX_SAMPLES)
+
 		input = sox.OpenRead(flag.Arg(i))
 		if input == nil {
 			log.Fatal("OpenRead failed")
 		}
 		// If this is the first input file...
 		if i == 0 {
-			output = sox.OpenWrite(flag.Arg(flag.NArg() - 1),
+			output = sox.OpenWrite(flag.Arg(flag.NArg()-1),
 				input.Signal(), input.Encoding(),
 				nil)
 			if output == nil {
@@ -57,12 +60,17 @@ func main() {
 			defer output.Release()
 			signal = input.Signal()
 		} else {
+			// If this is not the first input file, the number of Channels
+			// and the Rate must match that of the first file (WHY?)
 			check(input.Signal().Channels() == signal.Channels(), "channels")
 			check(input.Signal().Rate() == signal.Rate(), "rate")
 		}
+
 		// Continue here!
-		for number_read := input.Read(samples); number_read != 0; number_read = input.Read(samples) {
-			check(output.Write(samples) == number_read, "write")
+		for number_read := input.Read(samples, MAX_SAMPLES); //
+		number_read > 0;                                     //
+		number_read = input.Read(samples, MAX_SAMPLES) {
+			check(output.Write(samples, uint(number_read)) == number_read, "write")
 		}
 		input.Release()
 	}
