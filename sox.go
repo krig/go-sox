@@ -6,8 +6,8 @@
 package sox
 
 import (
-	"unsafe"
 	"math"
+	"unsafe"
 )
 
 /*
@@ -29,87 +29,86 @@ func go_flow_shim_impl(fn unsafe.Pointer, all_done C.sox_bool) C.int {
 
 const (
 	// no, yes, or default (default usually implies some kind of auto-detect logic).
-	NO = C.sox_option_no
-	YES = C.sox_option_yes
+	NO      = C.sox_option_no
+	YES     = C.sox_option_yes
 	DEFAULT = C.sox_option_default
 
 	// The libSoX-specific error codes.
 	SUCCESS = C.SOX_SUCCESS // Function succeeded
-	EOF = C.SOX_EOF		// End Of File or other error
-	EHDR = C.SOX_EHDR	// Invalid Audio Header
-	EFMT = C.SOX_EFMT	// Unsupported data format
-	ENOMEM = C.SOX_ENOMEM	// Can't alloc memory
-	EPERM = C.SOX_EPERM	// Operation not permitted
+	EOF     = C.SOX_EOF     // End Of File or other error
+	EHDR    = C.SOX_EHDR    // Invalid Audio Header
+	EFMT    = C.SOX_EFMT    // Unsupported data format
+	ENOMEM  = C.SOX_ENOMEM  // Can't alloc memory
+	EPERM   = C.SOX_EPERM   // Operation not permitted
 	ENOTSUP = C.SOX_ENOTSUP // Operation not supported
-	EINVAL = C.SOX_EINVAL	// Invalid argument
+	EINVAL  = C.SOX_EINVAL  // Invalid argument
 
 	// Flags indicating whether optional features are present in this build of libSoX.
-	HAVE_POPEN = C.sox_version_have_popen
-	HAVE_MAGIC = C.sox_version_have_magic
+	HAVE_POPEN   = C.sox_version_have_popen
+	HAVE_MAGIC   = C.sox_version_have_magic
 	HAVE_THREADS = C.sox_version_have_threads
 	HAVE_MEMOPEN = C.sox_version_have_memopen
 
 	// Format of sample data.
-	ENCODING_UNKNOWN = C.SOX_ENCODING_UNKNOWN	// encoding has not yet been determined
-	ENCODING_SIGN2 = C.SOX_ENCODING_SIGN2		// signed linear 2's comp: Mac
-	ENCODING_UNSIGNED = C.SOX_ENCODING_UNSIGNED	// unsigned linear: Sound Blaster
-	ENCODING_FLOAT = C.SOX_ENCODING_FLOAT		// floating point (binary format)
+	ENCODING_UNKNOWN    = C.SOX_ENCODING_UNKNOWN    // encoding has not yet been determined
+	ENCODING_SIGN2      = C.SOX_ENCODING_SIGN2      // signed linear 2's comp: Mac
+	ENCODING_UNSIGNED   = C.SOX_ENCODING_UNSIGNED   // unsigned linear: Sound Blaster
+	ENCODING_FLOAT      = C.SOX_ENCODING_FLOAT      // floating point (binary format)
 	ENCODING_FLOAT_TEXT = C.SOX_ENCODING_FLOAT_TEXT // floating point (text format)
-	ENCODING_FLAC = C.SOX_ENCODING_FLAC		// FLAC compression
-	ENCODING_HCOM = C.SOX_ENCODING_HCOM		// Mac FSSD files with Huffman compression
-	ENCODING_WAVPACK = C.SOX_ENCODING_WAVPACK	// WavPack with integer samples
-	ENCODING_WAVPACKF = C.SOX_ENCODING_WAVPACKF	// WavPack with float samples
-	ENCODING_ULAW = C.SOX_ENCODING_ULAW		// u-law signed logs: US telephony SPARC
-	ENCODING_ALAW = C.SOX_ENCODING_ALAW		// A-law signed logs: non-US telephony Psion
-	ENCODING_G721 = C.SOX_ENCODING_G721		// G.721 4-bit ADPCM
-	ENCODING_G723 = C.SOX_ENCODING_G723		// G.723 3 or 5 bit ADPCM
-	ENCODING_CL_ADPCM = C.SOX_ENCODING_CL_ADPCM	// Creative Labs 8 --> 234 bit Compressed PCM
+	ENCODING_FLAC       = C.SOX_ENCODING_FLAC       // FLAC compression
+	ENCODING_HCOM       = C.SOX_ENCODING_HCOM       // Mac FSSD files with Huffman compression
+	ENCODING_WAVPACK    = C.SOX_ENCODING_WAVPACK    // WavPack with integer samples
+	ENCODING_WAVPACKF   = C.SOX_ENCODING_WAVPACKF   // WavPack with float samples
+	ENCODING_ULAW       = C.SOX_ENCODING_ULAW       // u-law signed logs: US telephony SPARC
+	ENCODING_ALAW       = C.SOX_ENCODING_ALAW       // A-law signed logs: non-US telephony Psion
+	ENCODING_G721       = C.SOX_ENCODING_G721       // G.721 4-bit ADPCM
+	ENCODING_G723       = C.SOX_ENCODING_G723       // G.723 3 or 5 bit ADPCM
+	ENCODING_CL_ADPCM   = C.SOX_ENCODING_CL_ADPCM   // Creative Labs 8 --> 234 bit Compressed PCM
 	ENCODING_CL_ADPCM16 = C.SOX_ENCODING_CL_ADPCM16 // Creative Labs 16 --> 4 bit Compressed PCM
-	ENCODING_MS_ADPCM = C.SOX_ENCODING_MS_ADPCM	// Microsoft Compressed PCM
-	ENCODING_IMA_ADPCM = C.SOX_ENCODING_IMA_ADPCM	// IMA Compressed PCM
-	ENCODING_OKI_ADPCM = C.SOX_ENCODING_OKI_ADPCM	// Dialogic/OKI Compressed PCM
-	ENCODING_DPCM = C.SOX_ENCODING_DPCM		// Differential PCM: Fasttracker 2 (xi)
-	ENCODING_DWVW = C.SOX_ENCODING_DWVW		// Delta Width Variable Word
-	ENCODING_DWVWN = C.SOX_ENCODING_DWVWN		// Delta Width Variable Word N-bit
-	ENCODING_GSM = C.SOX_ENCODING_GSM		// GSM 6.10 33byte frame lossy compression
-	ENCODING_MP3 = C.SOX_ENCODING_MP3		// MP3 compression
-	ENCODING_VORBIS = C.SOX_ENCODING_VORBIS		// Vorbis compression
-	ENCODING_AMR_WB = C.SOX_ENCODING_AMR_WB		// AMR-WB compression
-	ENCODING_AMR_NB = C.SOX_ENCODING_AMR_NB		// AMR-NB compression
-	ENCODING_CVSD = C.SOX_ENCODING_CVSD		// Continuously Variable Slope Delta modulation
-	ENCODING_LPC10 = C.SOX_ENCODING_LPC10		// Linear Predictive Coding
+	ENCODING_MS_ADPCM   = C.SOX_ENCODING_MS_ADPCM   // Microsoft Compressed PCM
+	ENCODING_IMA_ADPCM  = C.SOX_ENCODING_IMA_ADPCM  // IMA Compressed PCM
+	ENCODING_OKI_ADPCM  = C.SOX_ENCODING_OKI_ADPCM  // Dialogic/OKI Compressed PCM
+	ENCODING_DPCM       = C.SOX_ENCODING_DPCM       // Differential PCM: Fasttracker 2 (xi)
+	ENCODING_DWVW       = C.SOX_ENCODING_DWVW       // Delta Width Variable Word
+	ENCODING_DWVWN      = C.SOX_ENCODING_DWVWN      // Delta Width Variable Word N-bit
+	ENCODING_GSM        = C.SOX_ENCODING_GSM        // GSM 6.10 33byte frame lossy compression
+	ENCODING_MP3        = C.SOX_ENCODING_MP3        // MP3 compression
+	ENCODING_VORBIS     = C.SOX_ENCODING_VORBIS     // Vorbis compression
+	ENCODING_AMR_WB     = C.SOX_ENCODING_AMR_WB     // AMR-WB compression
+	ENCODING_AMR_NB     = C.SOX_ENCODING_AMR_NB     // AMR-NB compression
+	ENCODING_CVSD       = C.SOX_ENCODING_CVSD       // Continuously Variable Slope Delta modulation
+	ENCODING_LPC10      = C.SOX_ENCODING_LPC10      // Linear Predictive Coding
 
 	// Flags for EncodingsInfo: lossless/lossy1/lossy2
-	LOSSLESS = C.sox_encodings_none // No flags specified (implies lossless encoding).
-	LOSSY1 = C.sox_encodings_lossy1 // Encode, decode: lossy once.
-	LOSSY2 = C.sox_encodings_lossy2 // Encode, decode, encode, decode: lossy twice.
+	LOSSLESS = C.sox_encodings_none   // No flags specified (implies lossless encoding).
+	LOSSY1   = C.sox_encodings_lossy1 // Encode, decode: lossy once.
+	LOSSY2   = C.sox_encodings_lossy2 // Encode, decode, encode, decode: lossy twice.
 
 	// Type of plot.
-	PLOT_OFF = C.sox_plot_off // No plot.
-	PLOT_OCTAVE = C.sox_plot_octave // Octave plot.
+	PLOT_OFF     = C.sox_plot_off     // No plot.
+	PLOT_OCTAVE  = C.sox_plot_octave  // Octave plot.
 	PLOT_GNUPLOT = C.sox_plot_gnuplot // Gnuplot plot.
-	PLOT_DATA = C.sox_plot_data // Plot data.
+	PLOT_DATA    = C.sox_plot_data    // Plot data.
 
 	// Loop modes.
-	LOOP_NONE = C.sox_loop_none // single-shot
-	LOOP_FORWARD = C.sox_loop_forward // forward loop
-	LOOP_FORWARD_BACK = C.sox_loop_forward_back // forward/back loop
-	LOOP_8 = C.sox_loop_8 // 8 loops (??)
+	LOOP_NONE          = C.sox_loop_none          // single-shot
+	LOOP_FORWARD       = C.sox_loop_forward       // forward loop
+	LOOP_FORWARD_BACK  = C.sox_loop_forward_back  // forward/back loop
+	LOOP_8             = C.sox_loop_8             // 8 loops (??)
 	LOOP_SUSTAIN_DECAY = C.sox_loop_sustain_decay // AIFF style, one sustain & one decay loop
 
-	DEFAULT_CHANNELS = C.SOX_DEFAULT_CHANNELS
-	DEFAULT_RATE = C.SOX_DEFAULT_RATE
+	DEFAULT_CHANNELS  = C.SOX_DEFAULT_CHANNELS
+	DEFAULT_RATE      = C.SOX_DEFAULT_RATE
 	DEFAULT_PRECISION = C.SOX_DEFAULT_PRECISION
-	DEFAULT_ENCODING = C.SOX_DEFAULT_ENCODING
+	DEFAULT_ENCODING  = C.SOX_DEFAULT_ENCODING
 
 	// Maximum number of loops supported by sox_oob_t
 	MAX_NLOOPS = C.SOX_MAX_NLOOPS
 
 	FILE_NOSTDIO = C.SOX_FILE_NOSTDIO
-	FILE_DEVICE = C.SOX_FILE_DEVICE
-	FILE_PHONY = C.SOX_FILE_PHONY
-	FILE_REWIND = C.SOX_FILE_REWIND
-
+	FILE_DEVICE  = C.SOX_FILE_DEVICE
+	FILE_PHONY   = C.SOX_FILE_PHONY
+	FILE_REWIND  = C.SOX_FILE_REWIND
 )
 
 // Version returns the version number
@@ -168,7 +167,7 @@ type EncodingInfo struct {
 
 // EncodingsInfo holds basic information about an encoding.
 type EncodingsInfo struct {
-	Flags int // lossy once, lossy twice or lossless
+	Flags      int // lossy once, lossy twice or lossless
 	Name, Desc string
 }
 
@@ -420,7 +419,6 @@ func OpenMemRead0(buffer interface{}, signal *SignalInfo, encoding *EncodingInfo
 	return &fmt
 }
 
-
 // FormatSupportsEncoding returns true if the format handler for
 // the specified file type supports the specified encoding.
 func FormatSupportsEncoding(path string, encoding *EncodingInfo) bool {
@@ -582,7 +580,7 @@ func (c *EffectsChain) Add(effect *Effect, in, out *SignalInfo) bool {
 }
 
 // PushLast adds an already-initialized effect to the end of the chain.
-func (c *EffectsChain) PushLast(effect* Effect) {
+func (c *EffectsChain) PushLast(effect *Effect) {
 	C.sox_push_effect_last(c.cChain, effect.cEffect)
 }
 
@@ -635,7 +633,6 @@ func (h *EffectHandler) Usage() string {
 func (h *EffectHandler) Flags() uint {
 	return uint(h.cHandler.flags)
 }
-
 
 // FindEffect finds the effect handler with the given name.
 func FindEffect(name string) *EffectHandler {
