@@ -11,7 +11,8 @@ import (
 )
 
 /*
-#cgo pkg-config: sox
+#cgo linux pkg-config: sox
+#cgo darwin LDFLAGS: -L/usr/local/lib -lsox
 #include <sox.h>
 #include <stdlib.h>
 extern int go_flow_shim_impl(void* fn, sox_bool all_done);
